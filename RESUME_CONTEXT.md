@@ -22,10 +22,10 @@
 | `k8s-argocd` | K8s manifests, GitOps | Workstream A - Deploy Prometheus, Filebeat to K8s |
 | `ansible-quasarlab` | Ansible playbooks | Workstream B & C - Deploy node_exporter, Filebeat, pve-exporter |
 | `terraform-quasarlab` | VM provisioning | Reference for VM configs |
-| `cosmic-observability` | **EXISTING** Prometheus, Grafana, Vector, Elastic Stack | **MAY OVERLAP** - Check if this has dashboards/configs to reuse |
+| `cosmic-observability` | Empty/unused | Ignore - nothing there |
 | `observability-quasarlab` | New - plans only | Plans are here, implementation goes to other repos |
 
-**IMPORTANT:** Check `cosmic-observability` before implementing - it may already have Grafana dashboards, Prometheus configs, or other reusable assets!
+**Note:** `cosmic-observability` repo is empty/unused - ignore it.
 
 ---
 
@@ -173,20 +173,12 @@ chmod +x ~/bin/claude-observability.sh
 
 After migrating command-center1:
 
-1. **Check cosmic-observability repo:**
-   ```bash
-   cd ~/code
-   git clone git@github.com:mithr4ndir/cosmic-observability.git  # if not local
-   ls cosmic-observability/
-   ```
-   See if it has reusable Prometheus/Grafana configs.
-
-2. **Run the tmux launcher:**
+1. **Run the tmux launcher:**
    ```bash
    ~/bin/claude-observability.sh
    ```
 
-3. **Or run workstreams manually in separate terminals:**
+2. **Or run workstreams manually in separate terminals:**
    ```bash
    # Terminal 1 - A: K8s monitoring
    cd ~/code/k8s-argocd && claude
@@ -201,7 +193,7 @@ After migrating command-center1:
    cd ~/code/observability-quasarlab && claude
    ```
 
-4. **Dependency order:**
+3. **Dependency order:**
    - A + C can run in parallel (no dependencies)
    - B needs Prometheus endpoint from A
    - D needs all three complete
@@ -210,17 +202,14 @@ After migrating command-center1:
 
 ## Questions to Resolve After Migration
 
-1. Should `observability-quasarlab` merge into `cosmic-observability`?
-2. What's in `cosmic-observability` - can we reuse any dashboards/configs?
-3. What's the Elasticsearch password? (needed for Filebeat)
-4. Which MetalLB IP to reserve for Prometheus? (suggested 192.168.1.230)
+1. What's the Elasticsearch password? (needed for Filebeat)
+2. Which MetalLB IP to reserve for Prometheus? (suggested 192.168.1.230)
 
 ---
 
 ## GitHub Repos
 
-- https://github.com/mithr4ndir/observability-quasarlab (new - plans)
-- https://github.com/mithr4ndir/k8s-argocd
-- https://github.com/mithr4ndir/ansible-quasarlab
-- https://github.com/mithr4ndir/cosmic-observability (existing - check this!)
-- https://github.com/mithr4ndir/terraform-quasarlab
+- https://github.com/mithr4ndir/observability-quasarlab (plans + dashboards)
+- https://github.com/mithr4ndir/k8s-argocd (K8s manifests)
+- https://github.com/mithr4ndir/ansible-quasarlab (Ansible playbooks)
+- https://github.com/mithr4ndir/terraform-quasarlab (VM provisioning)
