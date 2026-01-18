@@ -1,7 +1,7 @@
 # Workstream A: Kubernetes Monitoring Stack
 
 ## Objective
-Deploy a complete metrics and logging stack in Kubernetes via ArgoCD, including Prometheus, Loki, and supporting components.
+Deploy Prometheus metrics stack in Kubernetes via ArgoCD, plus Filebeat for shipping pod logs to the existing Elasticsearch cluster.
 
 ## Target Repository
 `~/code/k8s-argocd`
@@ -10,15 +10,14 @@ Deploy a complete metrics and logging stack in Kubernetes via ArgoCD, including 
 - ArgoCD is already running in the cluster
 - MetalLB is configured for LoadBalancer services
 - NFS provisioner is available for persistent storage
+- Elasticsearch running at 192.168.1.167:9200 (existing)
 
 ## Architecture Overview
 ```
-Prometheus (metrics) ──┐
-                       ├──► Grafana VM (192.168.1.x)
-Loki (logs) ──────────┘
-     ▲
-     │
-Promtail (log collector, DaemonSet)
+Prometheus (metrics) ──► Grafana (192.168.1.121)
+                              ▲
+Filebeat ──► Elasticsearch ───┘
+             (192.168.1.167)
 ```
 
 ## Implementation Steps
@@ -29,6 +28,16 @@ Create `infrastructure/monitoring/` directory in k8s-argocd repo.
 **Files to create:**
 - `infrastructure/monitoring/namespace.yaml`
 - `infrastructure/monitoring/argocd-project.yaml`
+
+**namespace.yaml:**
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    name: monitoring
+```
 
 ### Step 2: Deploy kube-prometheus-stack
 Use the kube-prometheus-stack Helm chart which includes:
@@ -43,6 +52,17 @@ Use the kube-prometheus-stack Helm chart which includes:
 - `infrastructure/monitoring/kube-prometheus-stack/Chart.yaml`
 - `infrastructure/monitoring/kube-prometheus-stack/values.yaml`
 
+**Chart.yaml:**
+```yaml
+apiVersion: v2
+name: kube-prometheus-stack
+version: 1.0.0
+dependencies:
+  - name: kube-prometheus-stack
+    version: "65.x.x"  # Check latest
+    repository: https://prometheus-community.github.io/helm-charts
+```
+
 **Key values.yaml configuration:**
 ```yaml
 prometheus:
@@ -55,12 +75,14 @@ prometheus:
           resources:
             requests:
               storage: 50Gi
-    # Remote write to external Grafana/Mimir if desired
     externalLabels:
       cluster: quasarlab-k8s
+    # Enable remote write if you want to send to external Prometheus/Mimir
+    # remoteWrite:
+    #   - url: http://external-prometheus:9090/api/v1/write
 
 grafana:
-  enabled: false  # Using external Grafana VM
+  enabled: false  # Using external Grafana VM at 192.168.1.121
 
 alertmanager:
   enabled: true
@@ -78,62 +100,106 @@ nodeExporter:
 
 kubeStateMetrics:
   enabled: true
+
+# Scrape kubelet metrics
+kubelet:
+  enabled: true
+
+# Scrape kube-proxy
+kubeProxy:
+  enabled: true
 ```
 
-### Step 3: Deploy Loki for log aggregation
+### Step 3: Deploy Filebeat for log shipping to Elasticsearch
 **Files to create:**
-- `infrastructure/monitoring/loki/Chart.yaml`
-- `infrastructure/monitoring/loki/values.yaml`
+- `infrastructure/monitoring/filebeat/Chart.yaml`
+- `infrastructure/monitoring/filebeat/values.yaml`
 
-**Key configuration:**
+**Chart.yaml:**
 ```yaml
-loki:
-  auth_enabled: false
-  storage:
-    type: filesystem
-  schemaConfig:
-    configs:
-      - from: 2024-01-01
-        store: tsdb
-        object_store: filesystem
-        schema: v13
-        index:
-          prefix: index_
-          period: 24h
-
-singleBinary:
-  replicas: 1
-  persistence:
-    enabled: true
-    storageClass: nfs-client
-    size: 50Gi
+apiVersion: v2
+name: filebeat
+version: 1.0.0
+dependencies:
+  - name: filebeat
+    version: "8.x.x"  # Match your ES version
+    repository: https://helm.elastic.co
 ```
 
-### Step 4: Deploy Promtail as DaemonSet
-**Files to create:**
-- `infrastructure/monitoring/promtail/Chart.yaml`
-- `infrastructure/monitoring/promtail/values.yaml`
-
-**Key configuration:**
+**values.yaml:**
 ```yaml
-config:
-  clients:
-    - url: http://loki:3100/loki/api/v1/push
+daemonset:
+  enabled: true
 
-  snippets:
-    pipelineStages:
-      - cri: {}
-    scrapeConfigs: |
-      - job_name: kubernetes-pods
-        kubernetes_sd_configs:
-          - role: pod
-        relabel_configs:
-          - source_labels: [__meta_kubernetes_namespace]
-            target_label: namespace
-          - source_labels: [__meta_kubernetes_pod_name]
-            target_label: pod
-          - source_labels: [__meta_kubernetes_pod_container_name]
-            target_label: container
+filebeatConfig:
+  filebeat.yml: |
+    filebeat.autodiscover:
+      providers:
+        - type: kubernetes
+          node: ${NODE_NAME}
+          hints.enabled: true
+          hints.default_config:
+            type: container
+            paths:
+              - /var/log/containers/*${data.kubernetes.container.id}.log
+
+    processors:
+      - add_kubernetes_metadata:
+          host: ${NODE_NAME}
+          matchers:
+            - logs_path:
+                logs_path: "/var/log/containers/"
+      - drop_event:
+          when:
+            or:
+              - equals:
+                  kubernetes.namespace: "kube-system"
+              - equals:
+                  kubernetes.namespace: "monitoring"
+
+    output.elasticsearch:
+      hosts: ["192.168.1.167:9200"]
+      username: "${ELASTICSEARCH_USERNAME}"
+      password: "${ELASTICSEARCH_PASSWORD}"
+      index: "k8s-logs-%{+yyyy.MM.dd}"
+
+    setup.template.name: "k8s-logs"
+    setup.template.pattern: "k8s-logs-*"
+    setup.ilm.enabled: true
+    setup.ilm.rollover_alias: "k8s-logs"
+    setup.ilm.pattern: "{now/d}-000001"
+
+extraEnvs:
+  - name: NODE_NAME
+    valueFrom:
+      fieldRef:
+        fieldPath: spec.nodeName
+  - name: ELASTICSEARCH_USERNAME
+    valueFrom:
+      secretKeyRef:
+        name: elasticsearch-credentials
+        key: username
+  - name: ELASTICSEARCH_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: elasticsearch-credentials
+        key: password
+```
+
+### Step 4: Create Elasticsearch credentials secret
+**Files to create:**
+- `infrastructure/monitoring/filebeat/secret.yaml` (use sealed-secrets or external-secrets in production)
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: elasticsearch-credentials
+  namespace: monitoring
+type: Opaque
+stringData:
+  username: elastic
+  password: <your-elastic-password>  # Use sealed-secrets!
 ```
 
 ### Step 5: Create ArgoCD Application manifests
@@ -159,12 +225,16 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
 ```
 
-### Step 6: Expose services for external Grafana
-Create Services/Ingress so the external Grafana VM can scrape Prometheus and query Loki.
+### Step 6: Expose Prometheus for external Grafana
+Create LoadBalancer service so Grafana (192.168.1.121) can query Prometheus.
 
-**Option A: LoadBalancer services**
+**Files to create:**
+- `infrastructure/monitoring/prometheus-external-svc.yaml`
+
 ```yaml
 apiVersion: v1
 kind: Service
@@ -176,19 +246,18 @@ spec:
   loadBalancerIP: 192.168.1.230  # Reserve IP in MetalLB
   ports:
     - port: 9090
+      targetPort: 9090
   selector:
     app.kubernetes.io/name: prometheus
+    prometheus: kube-prometheus-stack-prometheus
 ```
-
-**Option B: Use nginx LB (existing)**
-Add upstream configs to nginx1/nginx2.
 
 ## Validation Steps
 1. `kubectl get pods -n monitoring` - All pods running
-2. `kubectl port-forward svc/prometheus 9090:9090 -n monitoring` - Access Prometheus UI
+2. `kubectl port-forward svc/prometheus-operated 9090:9090 -n monitoring` - Access Prometheus UI
 3. Query `up` metric in Prometheus - Should show all targets
-4. `kubectl port-forward svc/loki 3100:3100 -n monitoring` - Access Loki
-5. Query `{namespace="media"}` in Loki - Should show logs
+4. Check Kibana (192.168.1.167:5601) for `k8s-logs-*` index
+5. In Grafana, add Prometheus datasource pointing to 192.168.1.230:9090
 
 ## Files Summary
 ```
@@ -197,20 +266,20 @@ k8s-argocd/
     └── monitoring/
         ├── namespace.yaml
         ├── application.yaml
+        ├── prometheus-external-svc.yaml
         ├── kube-prometheus-stack/
         │   ├── Chart.yaml
         │   └── values.yaml
-        ├── loki/
-        │   ├── Chart.yaml
-        │   └── values.yaml
-        └── promtail/
+        └── filebeat/
             ├── Chart.yaml
-            └── values.yaml
+            ├── values.yaml
+            └── secret.yaml
 ```
 
 ## Estimated Complexity
-- Medium-High
-- Requires understanding of Helm, ArgoCD, and Prometheus ecosystem
+- Medium
+- Requires understanding of Helm, ArgoCD, and Prometheus/Filebeat
 
 ## Dependencies
+- Elasticsearch credentials needed for Filebeat
 - Workstream D (Grafana datasource configuration) should be coordinated

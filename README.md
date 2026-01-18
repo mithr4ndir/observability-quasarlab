@@ -6,21 +6,22 @@ This repository contains the observability configuration for the QuasarLab homel
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                      GRAFANA (VM: 192.168.1.103)                │
-│                     Dashboards & Alerting                       │
+│                   GRAFANA (192.168.1.121)                       │
+│                   Dashboards & Alerting                         │
 └─────────────────────────────────────────────────────────────────┘
                     ▲                         ▲
                     │                         │
         ┌───────────┴───────────┐   ┌────────┴────────────┐
-        │     PROMETHEUS        │   │        LOKI         │
-        │   (K8s: monitoring)   │   │   (K8s: monitoring) │
+        │     PROMETHEUS        │   │    ELASTICSEARCH    │
+        │   (K8s: monitoring)   │   │   (192.168.1.167)   │
+        │       metrics         │   │       logs          │
         └───────────────────────┘   └─────────────────────┘
                     ▲                         ▲
     ┌───────────────┼─────────────────────────┼───────────────┐
     │               │                         │               │
 ┌───┴───┐     ┌─────┴─────┐           ┌───────┴───────┐  ┌────┴────┐
-│  PVE  │     │   K8s     │           │    VMs        │  │   K8s   │
-│Exporter│    │  Metrics  │           │  (Alloy)      │  │ Promtail│
+│  PVE  │     │   K8s     │           │  Filebeat     │  │Filebeat │
+│Exporter│    │  Metrics  │           │  (VMs)        │  │  (K8s)  │
 └───────┘     └───────────┘           └───────────────┘  └─────────┘
     │               │                         │               │
 ┌───┴───┐     ┌─────┴─────┐           ┌───────┴───────┐  ┌────┴────┐
@@ -120,8 +121,24 @@ observability-quasarlab/
 | Service | Endpoint | Port |
 |---------|----------|------|
 | Prometheus (K8s) | 192.168.1.230 | 9090 |
-| Loki (K8s) | 192.168.1.231 | 3100 |
-| Grafana | 192.168.1.103 | 3000 |
+| Elasticsearch | 192.168.1.167 | 9200 |
+| Kibana | 192.168.1.167 | 5601 |
+| Grafana | 192.168.1.121 | 3000 |
 | PVE Exporter (pve) | 192.168.1.10 | 9221 |
 | PVE Exporter (pve2) | 192.168.1.11 | 9221 |
 | node_exporter (all VMs) | <vm-ip> | 9100 |
+
+## VM IP Reference
+
+| VM | VMID | IP |
+|----|------|-----|
+| npm | 100 | 192.168.1.150 |
+| elastic | 102 | 192.168.1.167 |
+| grafana | 103 | 192.168.1.121 |
+| timescaleDB | 104 | 192.168.1.122 |
+| command-center1 | 105 | 192.168.1.88 |
+| ad | 108 | 192.168.1.67 |
+| k8cluster1 | 110 | 192.168.1.90 |
+| k8cluster3 | 111 | 192.168.1.91 |
+| nginx1 | 112 | 192.168.1.92 |
+| nginx2 | 113 | 192.168.1.93 |

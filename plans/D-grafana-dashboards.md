@@ -7,9 +7,9 @@ Configure Grafana on the existing VM (192.168.1.103) with datasources and dashbo
 `~/code/observability-quasarlab`
 
 ## Prerequisites
-- Grafana VM running (192.168.1.103)
+- Grafana VM running (192.168.1.121)
 - Prometheus deployed (Workstream A)
-- Loki deployed (Workstream A)
+- Elasticsearch running (192.168.1.167)
 - PVE exporter running (Workstream C)
 
 ## Architecture
@@ -33,7 +33,7 @@ observability-quasarlab/
 │       │   └── storage-metrics.json
 │       └── vms/
 │           ├── node-exporter-full.json
-│           └── logs-explorer.json
+│           └── elasticsearch-logs.json
 ├── alerting/
 │   └── rules/
 │       ├── kubernetes.yaml
@@ -62,19 +62,26 @@ datasources:
       httpMethod: POST
       timeInterval: "15s"
 
-  # Loki for logs
-  - name: Loki
-    type: loki
+  # Elasticsearch for logs
+  - name: Elasticsearch
+    type: elasticsearch
     access: proxy
-    url: http://192.168.1.231:3100
-    editable: false
+    url: http://192.168.1.167:9200
+    database: "[k8s-logs-]YYYY.MM.DD,[vm-logs-]YYYY.MM.DD"
+    basicAuth: true
+    basicAuthUser: elastic
+    secureJsonData:
+      basicAuthPassword: "${ELASTICSEARCH_PASSWORD}"
     jsonData:
-      maxLines: 1000
+      timeField: "@timestamp"
+      esVersion: "8.0.0"
+      logMessageField: message
+      logLevelField: log.level
 
   # TimescaleDB (if you want to use it)
   - name: TimescaleDB
     type: postgres
-    url: 192.168.1.x:5432
+    url: 192.168.1.122:5432
     database: metrics
     user: grafana
     secureJsonData:
@@ -403,7 +410,7 @@ observability-quasarlab/
 │       │   └── vm-metrics.json
 │       └── vms/
 │           ├── node-exporter-full.json
-│           └── logs-explorer.json
+│           └── elasticsearch-logs.json
 ├── alerting/
 │   └── rules/
 │       └── infrastructure.yaml
