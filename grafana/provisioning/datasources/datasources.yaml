@@ -1,0 +1,9 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus-K8s
+    type: prometheus
+    access: proxy
+    url: http://192.168.1.230:9090
+    isDefault: true
+    editable: false
