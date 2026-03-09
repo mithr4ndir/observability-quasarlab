@@ -908,6 +908,178 @@
         "legend": { "displayMode": "list", "placement": "bottom" },
         "tooltip": { "mode": "multi", "sort": "desc" }
       }
+    },
+    {
+      "id": 28,
+      "type": "row",
+      "title": "NAS Media Storage",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 52 },
+      "collapsed": false
+    },
+    {
+      "id": 29,
+      "type": "timeseries",
+      "title": "NFS Read/Write Operations (Jellyfin Client)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 53 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "rate(node_nfs_requests_total{instance=\"jellyfin\", method=\"Read\", proto=\"4\"}[5m])",
+          "legendFormat": "NFS Reads/s",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        },
+        {
+          "expr": "rate(node_nfs_requests_total{instance=\"jellyfin\", method=\"Write\", proto=\"4\"}[5m])",
+          "legendFormat": "NFS Writes/s",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        },
+        {
+          "expr": "rate(node_nfs_requests_total{instance=\"jellyfin\", method=\"ReadDir\", proto=\"4\"}[5m])",
+          "legendFormat": "NFS ReadDir/s",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 15,
+            "spanNulls": true
+          },
+          "unit": "ops",
+          "min": 0,
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 30,
+      "type": "timeseries",
+      "title": "TrueNAS Disk I/O (Media Pool)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 53 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "sum(rate(node_disk_read_bytes_total{instance=\"truenas\", device=~\"sd.*\"}[5m]))",
+          "legendFormat": "Read",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        },
+        {
+          "expr": "sum(rate(node_disk_written_bytes_total{instance=\"truenas\", device=~\"sd.*\"}[5m]))",
+          "legendFormat": "Write",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 20,
+            "gradientMode": "scheme",
+            "spanNulls": true
+          },
+          "unit": "Bps",
+          "min": 0,
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 31,
+      "type": "timeseries",
+      "title": "NFS Retransmissions & Errors",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 61 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "rate(node_nfs_rpc_retransmissions_total{instance=\"jellyfin\"}[5m])",
+          "legendFormat": "RPC Retransmissions",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        },
+        {
+          "expr": "rate(node_nfs_rpc_authentication_refreshes_total{instance=\"jellyfin\"}[5m])",
+          "legendFormat": "Auth Refreshes",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "spanNulls": true
+          },
+          "unit": "ops",
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          },
+          "color": { "mode": "continuous-GrYlRd" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 32,
+      "type": "timeseries",
+      "title": "TrueNAS Disk Latency",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 61 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "rate(node_disk_read_time_seconds_total{instance=\"truenas\", device=~\"sd.*\"}[5m]) / rate(node_disk_reads_completed_total{instance=\"truenas\", device=~\"sd.*\"}[5m])",
+          "legendFormat": "Read Latency {{ device }}",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        },
+        {
+          "expr": "rate(node_disk_write_time_seconds_total{instance=\"truenas\", device=~\"sd.*\"}[5m]) / rate(node_disk_writes_completed_total{instance=\"truenas\", device=~\"sd.*\"}[5m])",
+          "legendFormat": "Write Latency {{ device }}",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "spanNulls": true
+          },
+          "unit": "s",
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.01 },
+              { "color": "red", "value": 0.05 }
+            ]
+          },
+          "color": { "mode": "continuous-GrYlRd" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
     }
   ]
 }
