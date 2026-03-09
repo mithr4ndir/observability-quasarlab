@@ -727,10 +727,179 @@
       }
     },
     {
+      "id": 37,
+      "type": "row",
+      "title": "Host GPU Recovery (Proxmox PCI Reset)",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 24 },
+      "collapsed": false
+    },
+    {
+      "id": 38,
+      "type": "stat",
+      "title": "GPU Healthy (Host View)",
+      "description": "Whether the Proxmox host can reach the GPU inside the VM via guest agent",
+      "gridPos": { "h": 5, "w": 4, "x": 0, "y": 25 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "gpu_vm_monitor_healthy{vmid=\"115\"}",
+          "legendFormat": "",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          },
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "UNHEALTHY", "color": "red" }, "1": { "text": "HEALTHY", "color": "green" } } }
+          ],
+          "unit": "none",
+          "noValue": "N/A"
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 39,
+      "type": "stat",
+      "title": "Consecutive Failures",
+      "description": "Current consecutive GPU check failures before PCI reset triggers (threshold: 3)",
+      "gridPos": { "h": 5, "w": 4, "x": 4, "y": 25 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "gpu_vm_monitor_consecutive_failures{vmid=\"115\"}",
+          "legendFormat": "",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 3 }
+            ]
+          },
+          "unit": "none",
+          "noValue": "0"
+        }
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 40,
+      "type": "stat",
+      "title": "PCI Resets Total",
+      "description": "Total PCI device resets performed by Proxmox host to recover crashed GPU",
+      "gridPos": { "h": 5, "w": 4, "x": 8, "y": 25 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "gpu_vm_monitor_pci_resets_total",
+          "legendFormat": "",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          },
+          "unit": "none",
+          "noValue": "0"
+        }
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 41,
+      "type": "timeseries",
+      "title": "Host GPU Health & PCI Resets Over Time",
+      "gridPos": { "h": 5, "w": 12, "x": 12, "y": 25 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "gpu_vm_monitor_healthy{vmid=\"115\"}",
+          "legendFormat": "Healthy",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        },
+        {
+          "expr": "gpu_vm_monitor_consecutive_failures{vmid=\"115\"}",
+          "legendFormat": "Consecutive Failures",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        },
+        {
+          "expr": "increase(gpu_vm_monitor_pci_resets_total[1h])",
+          "legendFormat": "PCI Resets (1h)",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "fillOpacity": 15,
+            "spanNulls": true
+          },
+          "unit": "none",
+          "decimals": 0,
+          "min": 0
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Healthy" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Consecutive Failures" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "PCI Resets (1h)" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
       "id": 19,
       "type": "timeseries",
       "title": "GPU Utilization Over Time",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 30 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         {
@@ -772,7 +941,7 @@
       "id": 20,
       "type": "timeseries",
       "title": "GPU Temperature & Fan",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 30 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         {
@@ -823,7 +992,7 @@
       "id": 21,
       "type": "timeseries",
       "title": "GPU Power Draw",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 38 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         {
@@ -868,7 +1037,7 @@
       "id": 22,
       "type": "timeseries",
       "title": "VRAM Usage",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 38 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         {
@@ -913,14 +1082,14 @@
       "id": 23,
       "type": "row",
       "title": "System Resources",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 40 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 46 },
       "collapsed": false
     },
     {
       "id": 24,
       "type": "timeseries",
       "title": "CPU Usage",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 41 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 47 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         {
@@ -960,7 +1129,7 @@
       "id": 25,
       "type": "timeseries",
       "title": "Memory Usage",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 41 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 47 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         {
@@ -1000,7 +1169,7 @@
       "id": 26,
       "type": "timeseries",
       "title": "Network Throughput",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 49 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 55 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         {
@@ -1036,7 +1205,7 @@
       "id": 27,
       "type": "timeseries",
       "title": "Disk I/O",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 49 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 55 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         {
@@ -1072,14 +1241,14 @@
       "id": 28,
       "type": "row",
       "title": "NAS Media Storage",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 57 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 63 },
       "collapsed": false
     },
     {
       "id": 29,
       "type": "timeseries",
       "title": "NFS Read/Write Operations (Jellyfin Client)",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 58 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 64 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         {
@@ -1120,7 +1289,7 @@
       "id": 30,
       "type": "timeseries",
       "title": "TrueNAS Disk I/O (Media Pool)",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 58 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 64 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         {
@@ -1157,7 +1326,7 @@
       "id": 31,
       "type": "timeseries",
       "title": "NFS Retransmissions & Errors",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 66 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 72 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         {
@@ -1200,7 +1369,7 @@
       "id": 32,
       "type": "timeseries",
       "title": "TrueNAS Disk Latency",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 66 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 72 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         {
