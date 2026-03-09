@@ -640,7 +640,7 @@
       "id": 35,
       "type": "stat",
       "title": "Hard Recoveries",
-      "description": "GPU recovered via VM reboot",
+      "description": "Soft recovery exhausted — escalated to host PCI reset",
       "gridPos": { "h": 5, "w": 4, "x": 8, "y": 19 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
@@ -690,7 +690,7 @@
         },
         {
           "expr": "increase(nvidia_gpu_hard_recoveries_total{instance=\"jellyfin\"}[1h])",
-          "legendFormat": "Hard Recoveries (reboot)",
+          "legendFormat": "Hard Recoveries (PCI reset)",
           "datasource": { "type": "prometheus", "uid": "${datasource}" }
         }
       ],
@@ -716,7 +716,7 @@
             "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }]
           },
           {
-            "matcher": { "id": "byName", "options": "Hard Recoveries (reboot)" },
+            "matcher": { "id": "byName", "options": "Hard Recoveries (PCI reset)" },
             "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }]
           }
         ]
