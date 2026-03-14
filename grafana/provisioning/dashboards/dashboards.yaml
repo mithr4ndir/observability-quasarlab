@@ -30,3 +30,13 @@ providers:
     options:
       path: /var/lib/grafana/dashboards/vms
       foldersFromFilesStructure: false
+
+  - name: Ansible
+    orgId: 1
+    folder: Ansible
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 60
+    options:
+      path: /var/lib/grafana/dashboards/ansible
+      foldersFromFilesStructure: false
