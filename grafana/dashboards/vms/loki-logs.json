@@ -70,15 +70,15 @@
         "enableLogDetails": true,
         "prettifyLogMessage": false,
         "showCommonLabels": false,
-        "showLabels": false,
+        "showLabels": true,
         "showTime": true,
         "sortOrder": "Descending",
-        "wrapLogMessage": true
+        "wrapLogMessage": false
       },
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "{job=\"varlogs\", host=~\"$host\", log_type=~\"$log_type\"} |= `$search`",
+          "expr": "{job=\"varlogs\", host=~\"$host\", log_type=~\"$log_type\"} |= `$search` | json | line_format `{{.message}}`",
           "refId": "A"
         }
       ],

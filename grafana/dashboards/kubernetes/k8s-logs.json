@@ -112,12 +112,12 @@
         "showLabels": true,
         "showTime": true,
         "sortOrder": "Descending",
-        "wrapLogMessage": true
+        "wrapLogMessage": false
       },
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "{job=\"kubernetes\", namespace=~\"$namespace\", app=~\"$app\", pod=~\"$pod\"} |= `$search`",
+          "expr": "{job=\"kubernetes\", namespace=~\"$namespace\", app=~\"$app\", pod=~\"$pod\"} |= `$search` | json | line_format `{{.message}}`",
           "refId": "A"
         }
       ],
