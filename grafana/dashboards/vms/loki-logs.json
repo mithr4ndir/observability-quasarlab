@@ -46,7 +46,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "sum by (host) (count_over_time({job=\"varlogs\", host=~\"$host\", log_type=~\"$log_type\"} [$__interval]))",
+          "expr": "sum by (host) (count_over_time({job=\"varlogs\", host=~\"$host\", log_type=~\"$log_type\", app=~\"$app\"} [$__interval]))",
           "legendFormat": "{{host}}",
           "refId": "A"
         }
@@ -78,7 +78,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "${datasource}" },
-          "expr": "{job=\"varlogs\", host=~\"$host\", log_type=~\"$log_type\"} |= `$search` | json | line_format `{{.message}}`",
+          "expr": "{job=\"varlogs\", host=~\"$host\", log_type=~\"$log_type\", app=~\"$app\"} |= `$search` | json | line_format `{{.message}}`",
           "refId": "A"
         }
       ],
@@ -128,6 +128,21 @@
         "multi": true,
         "name": "log_type",
         "query": "label_values({job=\"varlogs\"}, log_type)",
+        "refresh": 2,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": { "text": "All", "value": "$__all" },
+        "datasource": { "type": "loki", "uid": "${datasource}" },
+        "definition": "label_values({job=\"varlogs\", host=~\"$host\"}, app)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "App",
+        "multi": true,
+        "name": "app",
+        "query": "label_values({job=\"varlogs\", host=~\"$host\"}, app)",
         "refresh": 2,
         "sort": 1,
         "type": "query"
