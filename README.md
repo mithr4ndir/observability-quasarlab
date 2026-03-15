@@ -1,175 +1,140 @@
-# Observability Stack for QuasarLab
+# observability-quasarlab — QuasarLab Monitoring & Dashboards
 
-This repository contains the observability configuration for the QuasarLab homelab infrastructure, including metrics, logs, alerting, and dashboards for both the Kubernetes plane and Proxmox hypervisor plane.
+Grafana dashboards, datasource provisioning, and observability documentation for a Proxmox-based homelab. Covers metrics (Prometheus), logs (Loki + Vector), security (Wazuh), and alerting (Discord).
 
-## Architecture Overview
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                   GRAFANA (192.168.1.121)                       │
-│                   Dashboards & Visualization                    │
-└─────────────────────────────────────────────────────────────────┘
-                    ▲                         ▲
-                    │                         │
-        ┌───────────┴───────────┐   ┌────────┴────────────┐
-        │     PROMETHEUS        │   │    ELASTICSEARCH    │
-        │   (K8s: monitoring)   │   │   (192.168.1.167)   │
-        │       metrics         │   │       logs          │
-        └───────────┬───────────┘   └─────────────────────┘
-                    │                         ▲
-                    ▼                         │
-        ┌───────────────────────┐   ┌────────┴────────────┐
-        │    ALERTMANAGER       │   │     FILEBEAT        │
-        │  (K8s: monitoring)    │   │   (All VMs + K8s)   │
-        └───────────┬───────────┘   └─────────────────────┘
-                    │
-                    ▼
-        ┌───────────────────────┐
-        │  DISCORD ALERT PROXY  │       ┌──────────────┐
-        │  (K8s: monitoring)    │──────▶│   DISCORD    │
-        │  LOTR/SW themed       │       │   #alerts    │
-        └───────────────────────┘       └──────────────┘
+                        ┌──────────────────────────┐
+                        │   GRAFANA (192.168.1.121) │
+                        │   Dashboards & Explore    │
+                        └─────┬──────────┬──────────┘
+                              │          │
+               ┌──────────────┘          └──────────────┐
+               ▼                                        ▼
+    ┌─────────────────────┐                  ┌─────────────────────┐
+    │     PROMETHEUS      │                  │        LOKI         │
+    │  (192.168.1.230)    │                  │   (192.168.1.231)   │
+    │     metrics         │                  │       logs          │
+    └─────────┬───────────┘                  └──────────┬──────────┘
+              │                                         ▲
+              ▼                                         │
+    ┌─────────────────────┐                  ┌──────────┴──────────┐
+    │    ALERTMANAGER     │                  │       VECTOR        │
+    │  (K8s: monitoring)  │                  │  DaemonSet + Agents │
+    └─────────┬───────────┘                  │  + Aggregator       │
+              │                              └─────────────────────┘
+              ▼
+    ┌─────────────────────┐       ┌──────────────┐
+    │  DISCORD ALERT PROXY│──────▶│   DISCORD    │
+    │  LOTR/SW themed     │       │   #alerts    │
+    └─────────────────────┘       └──────────────┘
+
+    ┌─────────────────────────────────────────────┐
+    │              WAZUH (192.168.1.171)           │
+    │  Manager + Indexer + Dashboard (SIEM)        │
+    │  13 agents across all Linux hosts            │
+    └─────────────────────────────────────────────┘
 ```
 
-## Alerting Pipeline
+## Log Pipeline (Loki + Vector)
 
-Alerts flow through: **Prometheus** (evaluates rules) → **Alertmanager** (routes, groups, deduplicates) → **Discord Alert Proxy** (themed embeds) → **Discord**
+Replaced the previous ELK stack (Elasticsearch + Filebeat) as of March 2026.
 
-### Alert Severity Tiers
+- **VM logs:** Vector agent on all 14 VMs ships journald + `/var/log/**/*.log` to Loki
+- **K8s logs:** Vector DaemonSet collects container logs (excludes kube-system/monitoring)
+- **External:** Vector Aggregator (`192.168.1.232`) accepts syslog/agent ingestion
+- **Retention:** 30 days, 50Gi storage on k8s-nfs
+- **Query:** Grafana Explore with LogQL
 
-| Severity | Color | Theme | Examples |
-|----------|-------|-------|----------|
-| Critical | Red | LOTR (Balrog, Mordor) + ASCII art | NodeDown, GPU failures |
-| Warning | Orange | Star Wars quotes | ServiceDown, PlaybookFailed, RebootRequired |
-| Info | Blue | LOTR/SW change quotes | AnsiblePlaybookMadeChanges |
-| Resolved | Green | LOTR positive | Auto-sent when alerts clear |
+## Security (Wazuh SIEM)
 
-### Alert Rules (managed in k8s-argocd)
+- All-in-one VM: Manager + Indexer (OpenSearch) + Dashboard
+- 13 agents across linux, kubernetes, and proxmox groups
+- Dashboard at `192.168.1.171:5601`
 
-| Alert | Severity | Condition |
-|-------|----------|-----------|
-| AnsiblePlaybookFailed | warning | `ansible_playbook_success == 0` for 5m |
-| AnsibleRunStale | warning | Last run > 1 hour ago |
-| AnsiblePlaybookMadeChanges | info | `ansible_playbook_changed_tasks > 0` |
+## Alerting
+
+Alerts flow: **Prometheus** (rules) → **Alertmanager** (routing) → **Discord Alert Proxy** (themed embeds) → **Discord**
+
+| Severity | Color | Theme |
+|----------|-------|-------|
+| Critical | Red | LOTR (Balrog, Mordor) |
+| Warning | Orange | Star Wars quotes |
+| Info | Blue | LOTR/SW change quotes |
+| Resolved | Green | LOTR positive |
+
+### Alert Rules
+
+| Alert | Severity | Trigger |
+|-------|----------|---------|
+| PveQuorumDegraded | warning | Cluster quorum votes below expected |
+| PveQuorumLost | critical | Cluster lost quorum entirely |
 | NodeDown | critical | Proxmox node unreachable |
-| PveGuestDown | warning | VM not running |
-| ServiceDown / ServiceInactive | warning | Monitored service offline |
-| RebootRequired | warning | `/var/run/reboot-required` exists |
+| PveGuestDown | warning | VM with autostart is down |
+| PveHighCpu / PveHighMemory | warning | Node resource > 90% |
+| ServiceDown / ServiceInactive | warning | Monitored systemd unit offline |
+| RebootRequired | warning | Pending reboot after patching |
 | SecurityUpdatesPending | warning | Pending security packages |
-
-### Alertmanager Routing
-
-- Default receiver: `discord` (via webhook proxy)
-- Watchdog / InfoInhibitor: suppressed (`null` receiver)
-- NodeDown: grouped by hypervisor, 1m wait, 1h repeat
-- PveGuestDown: grouped by node, 1m wait
-- ServiceDown: grouped by instance, 1m wait, 1h repeat
-- AnsiblePlaybookMadeChanges: grouped by alertname, 2m wait (batches all playbooks from one cron run), 4h repeat
-- Critical: 1h repeat
-
-### Discord Alert Proxy
-
-Runs in K8s (`monitoring` namespace). Converts Alertmanager webhooks into themed Discord embeds with message tracking (edits existing messages on update, cleans up on resolve).
-
-- Webhook URL stored in 1Password, fetched via ExternalSecret
-- Source: `k8s-argocd/infrastructure/monitoring/discord-alert-proxy/`
-
-## Workstreams
-
-| Workstream | Description | Repository | Status |
-|------------|-------------|------------|--------|
-| [A: K8s Monitoring](plans/A-k8s-monitoring.md) | Prometheus + Loki in K8s via ArgoCD | k8s-argocd | Complete |
-| [B: VM Monitoring](plans/B-vm-monitoring.md) | node_exporter + Filebeat via Ansible | ansible-quasarlab | Complete |
-| [C: Proxmox Metrics](plans/C-proxmox-metrics.md) | pve-exporter on PVE hosts | ansible-quasarlab | Complete |
-| [D: Grafana Dashboards](plans/D-grafana-dashboards.md) | Dashboards as code | observability-quasarlab | Complete |
-
-## Infrastructure Summary
-
-### Proxmox Cluster
-| Host | IP | RAM | Status |
-|------|-----|-----|--------|
-| pve | 192.168.1.10 | 128 GB | Primary |
-| pve2 | 192.168.1.11 | 128 GB | Secondary |
-
-### Virtual Machines
-| VM | VMID | Host | IP | RAM | Purpose |
-|----|------|------|----|-----|---------|
-| npm | 100 | pve | 192.168.1.150 | 6 GB | Nginx Proxy Manager |
-| elastic | 102 | pve | 192.168.1.167 | 64 GB | Elasticsearch |
-| grafana | 103 | pve | 192.168.1.121 | 8 GB | Monitoring dashboards |
-| timescaleDB | 104 | pve | 192.168.1.122 | 6 GB | Time-series DB |
-| command-center1 | 105 | pve2 | 192.168.1.88 | 16 GB | Ansible controller |
-| ad | 108 | pve | 192.168.1.67 | 8 GB | Active Directory |
-| k8cluster1 | 110 | pve | 192.168.1.90 | 16 GB | K8s control-plane |
-| k8cluster2 | 109 | pve2 | 192.168.1.89 | 16 GB | K8s control-plane |
-| k8cluster3 | 111 | pve | 192.168.1.91 | 16 GB | K8s control-plane |
-| nginx1 | 112 | pve | 192.168.1.92 | 4 GB | Load balancer |
-| nginx2 | 113 | pve | 192.168.1.93 | 4 GB | Load balancer |
-| jellyfin | 115 | pve2 | 192.168.1.170 | 12 GB | Media server (GPU passthrough) |
-
-### Kubernetes Namespaces
-| Namespace | Workloads |
-|-----------|-----------|
-| argocd | GitOps deployment |
-| monitoring | Prometheus, Alertmanager, Discord alert proxy |
-| metallb-system | Load balancer |
-| nfs | Storage provisioner |
+| AnsiblePlaybookFailed | warning | Playbook returned failure |
+| AnsibleRunStale | warning | No Ansible run in > 1 hour |
 
 ## Dashboards
 
 | Dashboard | Path | Description |
 |-----------|------|-------------|
-| Ansible Runs | `grafana/dashboards/ansible/ansible-runs.json` | Playbook success/failure, changed tasks, drift tracking |
-| Jellyfin | `grafana/dashboards/vms/jellyfin.json` | GPU stats, streams, watchdog, NAS storage |
-| Proxmox Cluster | `grafana/dashboards/proxmox/` | Node health, VM status, storage |
-| Kubernetes | `grafana/dashboards/kubernetes/` | Pod resources, node metrics |
+| QuasarLab Overview | `grafana/dashboards/vms/quasarlab-overview.json` | High-level lab status |
+| Jellyfin | `grafana/dashboards/vms/jellyfin.json` | GPU stats, active streams, watchdog, NAS storage |
+| VM Log Explorer | `grafana/dashboards/vms/loki-logs.json` | LogQL browser (host/log_type/app filters) |
+| Node Exporter Full | `grafana/dashboards/vms/node-exporter-full.json` | Detailed host metrics |
+| K8s Cluster Overview | `grafana/dashboards/kubernetes/cluster-overview.json` | Cluster health |
+| K8s Node Metrics | `grafana/dashboards/kubernetes/node-metrics.json` | Per-node resources |
+| K8s Pod Metrics | `grafana/dashboards/kubernetes/pod-metrics.json` | Per-pod resources |
+| K8s Workloads | `grafana/dashboards/kubernetes/workloads.json` | Deployment/StatefulSet status |
+| K8s Log Explorer | `grafana/dashboards/kubernetes/k8s-logs.json` | K8s logs via LogQL |
+| Proxmox Cluster | `grafana/dashboards/proxmox/cluster-overview.json` | Cluster health |
+| Proxmox Nodes | `grafana/dashboards/proxmox/nodes-overview.json` | Per-node metrics |
+| Proxmox VMs | `grafana/dashboards/proxmox/vms-overview.json` | VM status overview |
+| Proxmox VM Metrics | `grafana/dashboards/proxmox/vm-metrics.json` | Per-VM detail |
+| Proxmox Storage | `grafana/dashboards/proxmox/storage-metrics.json` | Pool usage |
+| Ansible Runs | `grafana/dashboards/ansible/ansible-runs.json` | Playbook success, drift tracking |
 
-## Directory Structure
+## Infrastructure
 
-```
-observability-quasarlab/
-├── README.md
-├── plans/                          # Implementation plans
-│   ├── A-k8s-monitoring.md
-│   ├── B-vm-monitoring.md
-│   ├── C-proxmox-metrics.md
-│   └── D-grafana-dashboards.md
-├── grafana/
-│   ├── provisioning/
-│   │   ├── datasources/
-│   │   │   └── datasources.yaml
-│   │   └── dashboards/
-│   │       └── dashboards.yaml
-│   └── dashboards/
-│       ├── ansible/
-│       ├── kubernetes/
-│       ├── proxmox/
-│       └── vms/
-├── alerting/
-│   └── rules/
-└── ansible/
-    └── deploy-grafana-config.yml
-```
+### Proxmox Cluster
+| Host | IP | RAM |
+|------|----|-----|
+| pve | 192.168.1.10 | 128 GB |
+| pve2 | 192.168.1.11 | 128 GB |
 
-## Related Repositories
+### Virtual Machines
+| VM | IP | Purpose |
+|----|----|---------|
+| jellyfin | 192.168.1.170 | Media server (GPU passthrough) |
+| grafana | 192.168.1.121 | Dashboards |
+| wazuh | 192.168.1.171 | SIEM |
+| npm | 192.168.1.150 | Reverse proxy |
+| timescaledb | 192.168.1.122 | Time-series DB |
+| command-center1 | 192.168.1.88 | Management |
+| k8cluster1-3 | 192.168.1.89-91 | Kubernetes |
+| nginx1-2 | 192.168.1.92-93 | Load balancers |
+| TrueNAS | 192.168.1.15 | NAS (NFS + iSCSI) |
+
+### Metrics Endpoints
+| Service | Endpoint | Port |
+|---------|----------|------|
+| Prometheus | 192.168.1.230 | 9090 |
+| Loki | 192.168.1.231 | 3100 |
+| Vector Aggregator | 192.168.1.232 | 5514/6000 |
+| Grafana | 192.168.1.121 | 3000 |
+| Wazuh Dashboard | 192.168.1.171 | 5601 |
+| PVE Exporter | 192.168.1.10-11 | 9221 |
+| node_exporter | all VMs | 9100 |
+
+## Related Repos
 
 | Repository | Purpose |
 |------------|---------|
-| **ansible-quasarlab** | Ansible playbooks for VM configuration, monitoring agents, GPU watchdog |
-| **k8s-argocd** | Kubernetes manifests — kube-prometheus-stack, Alertmanager config, Discord alert proxy |
-| **terraform-quasarlab** | Infrastructure as code for VM provisioning |
-| **observability-quasarlab** | This repo — Grafana dashboards and provisioning config |
-
-## Metrics Endpoints
-
-| Service | Endpoint | Port |
-|---------|----------|------|
-| Prometheus (K8s) | 192.168.1.230 | 9090 |
-| Alertmanager (K8s) | Internal | 9093 |
-| Discord Alert Proxy (K8s) | Internal | 9095 |
-| Elasticsearch | 192.168.1.167 | 9200 |
-| Kibana | 192.168.1.167 | 5601 |
-| Grafana | 192.168.1.121 | 3000 |
-| PVE Exporter (pve) | 192.168.1.10 | 9221 |
-| PVE Exporter (pve2) | 192.168.1.11 | 9221 |
-| node_exporter (all VMs) | \<vm-ip\> | 9100 |
+| [k8s-argocd](https://github.com/mithr4ndir/k8s-argocd) | Kubernetes manifests — Prometheus stack, Loki, Vector, alert proxy, alert rules |
+| [ansible-quasarlab](https://github.com/mithr4ndir/ansible-quasarlab) | VM agents (node_exporter, Vector, Wazuh), Jellyfin, PVE exporters |
+| [terraform-quasarlab](https://github.com/mithr4ndir/terraform-quasarlab) | VM provisioning on Proxmox |
