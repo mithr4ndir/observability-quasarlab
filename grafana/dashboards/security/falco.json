@@ -63,7 +63,7 @@
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         {
-          "expr": "sum(increase(falco_events{}[1h]))",
+          "expr": "sum(increase(falcosecurity_falco_rules_matches_total{}[1h]))",
           "legendFormat": "Events/1h"
         }
       ],
@@ -92,7 +92,7 @@
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         {
-          "expr": "sum(increase(falco_events{priority=~\"0|1|2\"}[1h])) or vector(0)",
+          "expr": "sum(increase(falcosecurity_falco_rules_matches_total{priority=~\"0|1|2\"}[1h])) or vector(0)",
           "legendFormat": "Critical+/1h"
         }
       ],
@@ -120,7 +120,7 @@
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         {
-          "expr": "sum(increase(falco_events{priority=\"4\"}[1h])) or vector(0)",
+          "expr": "sum(increase(falcosecurity_falco_rules_matches_total{priority=\"4\"}[1h])) or vector(0)",
           "legendFormat": "Warning/1h"
         }
       ],
@@ -148,7 +148,7 @@
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         {
-          "expr": "sum(increase(falco_events{priority=~\"5|6\"}[1h])) or vector(0)",
+          "expr": "sum(increase(falcosecurity_falco_rules_matches_total{priority=~\"5|6\"}[1h])) or vector(0)",
           "legendFormat": "Notice+Info/1h"
         }
       ],
@@ -182,7 +182,7 @@
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         {
-          "expr": "sum by (priority) (rate(falco_events{}[5m]))",
+          "expr": "sum by (priority) (rate(falcosecurity_falco_rules_matches_total{}[5m]))",
           "legendFormat": "priority={{priority}}"
         }
       ],
@@ -203,8 +203,8 @@
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         {
-          "expr": "topk(10, sum by (rule) (rate(falco_events{}[5m])))",
-          "legendFormat": "{{rule}}"
+          "expr": "topk(10, sum by (rule_name) (rate(falcosecurity_falco_rules_matches_total{}[5m])))",
+          "legendFormat": "{{rule_name}}"
         }
       ],
       "fieldConfig": {
@@ -230,7 +230,7 @@
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         {
-          "expr": "topk(20, sum by (rule, priority, source) (increase(falco_events{}[24h])))",
+          "expr": "topk(20, sum by (rule_name, priority, source) (increase(falcosecurity_falco_rules_matches_total{}[24h])))",
           "legendFormat": "",
           "format": "table",
           "instant": true
@@ -242,7 +242,7 @@
           "options": {
             "excludeByName": { "Time": true, "__name__": true },
             "renameByName": {
-              "rule": "Rule",
+              "rule_name": "Rule",
               "priority": "Priority",
               "source": "Source",
               "Value": "Count (24h)"
