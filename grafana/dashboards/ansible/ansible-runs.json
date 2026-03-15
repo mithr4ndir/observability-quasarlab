@@ -62,8 +62,8 @@
             "mode": "absolute",
             "steps": [
               { "color": "green", "value": null },
-              { "color": "yellow", "value": 2700 },
-              { "color": "red", "value": 3600 }
+              { "color": "yellow", "value": 2400 },
+              { "color": "red", "value": 2700 }
             ]
           },
           "unit": "s"
@@ -89,6 +89,7 @@
         }
       ],
       "title": "Time Since Last Run",
+      "description": "Yellow at 40min, red at 45min (cron runs every 30min)",
       "type": "stat"
     },
     {
@@ -391,6 +392,63 @@
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "fieldConfig": {
         "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": {
+            "align": "auto",
+            "cellOptions": { "type": "auto" },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "orange", "value": 3 }
+            ]
+          }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Changed Tasks" }, "properties": [{ "id": "custom.cellOptions", "value": { "type": "color-text" } }] },
+          { "matcher": { "id": "byName", "options": "Playbook" }, "properties": [{ "id": "custom.width", "value": 200 }] },
+          { "matcher": { "id": "byName", "options": "Changed Hosts" }, "properties": [{ "id": "custom.width", "value": 250 }] }
+        ]
+      },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 15 },
+      "id": 12,
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "Changed Tasks" }]
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "ansible_playbook_changed_tasks",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Changed Hosts by Playbook",
+      "description": "Shows which VMs were modified in the last Ansible run",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true },
+            "indexByName": {},
+            "renameByName": { "Value": "Changed Tasks", "playbook": "Playbook", "changed_hosts": "Changed Hosts" }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
           "color": { "mode": "palette-classic" },
           "custom": {
             "axisCenteredZero": false,
@@ -417,7 +475,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 15 },
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 25 },
       "id": 10,
       "options": {
         "legend": { "calcs": ["sum", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
@@ -431,7 +489,8 @@
           "refId": "A"
         }
       ],
-      "title": "Changed Tasks by Playbook",
+      "title": "Changes Over Time",
+      "description": "Tracks drift patterns — persistent changes indicate non-idempotent tasks",
       "type": "timeseries"
     },
     {
@@ -467,7 +526,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 25 },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 25 },
       "id": 11,
       "options": {
         "legend": { "calcs": [], "displayMode": "table", "placement": "right", "showLegend": true },
