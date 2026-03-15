@@ -40,3 +40,13 @@ providers:
     options:
       path: /var/lib/grafana/dashboards/ansible
       foldersFromFilesStructure: false
+
+  - name: Security
+    orgId: 1
+    folder: Security
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 60
+    options:
+      path: /var/lib/grafana/dashboards/security
+      foldersFromFilesStructure: false
