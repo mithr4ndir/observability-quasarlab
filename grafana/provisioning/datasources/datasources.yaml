@@ -7,3 +7,12 @@ datasources:
     url: http://192.168.1.230:9090
     isDefault: true
     editable: false
+
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://192.168.1.231:3100
+    isDefault: false
+    editable: false
+    jsonData:
+      maxLines: 1000
