@@ -16,3 +16,19 @@ datasources:
     editable: false
     jsonData:
       maxLines: 1000
+
+  - name: Wazuh-OpenSearch
+    type: grafana-opensearch-datasource
+    access: proxy
+    url: https://192.168.1.171:9200
+    editable: false
+    basicAuth: true
+    basicAuthUser: admin
+    jsonData:
+      database: "wazuh-alerts-*"
+      version: "2.12.0"
+      timeField: "timestamp"
+      tlsSkipVerify: true
+      flavor: opensearch
+    secureJsonData:
+      basicAuthPassword: "${WAZUH_INDEXER_PASSWORD}"
