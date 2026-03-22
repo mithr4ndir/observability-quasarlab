@@ -402,7 +402,7 @@
       },
       "targets": [
         {
-          "expr": "up{job=\"vm-node-exporter\"}",
+          "expr": "max by(instance) (up{job=\"vm-node-exporter\"})",
           "legendFormat": "{{ instance }}",
           "instant": true,
           "format": "table",
@@ -424,7 +424,7 @@
           }
         },
         {
-          "expr": "(1 - node_memory_MemAvailable_bytes{job=\"vm-node-exporter\"} / node_memory_MemTotal_bytes{job=\"vm-node-exporter\"}) * 100",
+          "expr": "max by(instance) ((1 - node_memory_MemAvailable_bytes{job=\"vm-node-exporter\"} / node_memory_MemTotal_bytes{job=\"vm-node-exporter\"}) * 100)",
           "legendFormat": "{{ instance }}",
           "instant": true,
           "format": "table",
@@ -435,7 +435,7 @@
           }
         },
         {
-          "expr": "(1 - node_filesystem_avail_bytes{job=\"vm-node-exporter\", fstype=~\"ext4|xfs|zfs\", mountpoint=\"/\"} / node_filesystem_size_bytes{job=\"vm-node-exporter\", fstype=~\"ext4|xfs|zfs\", mountpoint=\"/\"}) * 100",
+          "expr": "max by(instance) ((1 - node_filesystem_avail_bytes{job=\"vm-node-exporter\", fstype=~\"ext4|xfs|zfs\", mountpoint=\"/\"} / node_filesystem_size_bytes{job=\"vm-node-exporter\", fstype=~\"ext4|xfs|zfs\", mountpoint=\"/\"}) * 100)",
           "legendFormat": "{{ instance }}",
           "instant": true,
           "format": "table",
@@ -446,7 +446,7 @@
           }
         },
         {
-          "expr": "node_reboot_required{job=\"vm-node-exporter\"}",
+          "expr": "max by(instance) (node_reboot_required{job=\"vm-node-exporter\"})",
           "legendFormat": "{{ instance }}",
           "instant": true,
           "format": "table",
@@ -457,7 +457,7 @@
           }
         },
         {
-          "expr": "unattended_upgrades_success{job=\"vm-node-exporter\"}",
+          "expr": "max by(instance) (unattended_upgrades_success{job=\"vm-node-exporter\"})",
           "legendFormat": "{{ instance }}",
           "instant": true,
           "format": "table",
@@ -468,7 +468,7 @@
           }
         },
         {
-          "expr": "unattended_upgrades_pending_security{job=\"vm-node-exporter\"}",
+          "expr": "max by(instance) (unattended_upgrades_pending_security{job=\"vm-node-exporter\"})",
           "legendFormat": "{{ instance }}",
           "instant": true,
           "format": "table",
@@ -479,7 +479,7 @@
           }
         },
         {
-          "expr": "node_time_seconds{job=\"vm-node-exporter\"} - node_boot_time_seconds{job=\"vm-node-exporter\"}",
+          "expr": "max by(instance) (node_time_seconds{job=\"vm-node-exporter\"} - node_boot_time_seconds{job=\"vm-node-exporter\"})",
           "legendFormat": "{{ instance }}",
           "instant": true,
           "format": "table",
@@ -501,17 +501,10 @@
             "excludeByName": {
               "Time": true,
               "__name__": true,
-              "job": true,
-              "hypervisor": false,
-              "target_address": false,
-              "device": true,
-              "fstype": true,
-              "mountpoint": true
+              "job": true
             },
             "renameByName": {
               "instance": "Host",
-              "hypervisor": "Hypervisor",
-              "target_address": "IP Address",
               "Value #A": "Status",
               "Value #B": "CPU %",
               "Value #C": "Memory %",
@@ -523,16 +516,14 @@
             },
             "indexByName": {
               "Host": 0,
-              "IP Address": 1,
-              "Hypervisor": 2,
-              "Status": 3,
-              "CPU %": 4,
-              "Memory %": 5,
-              "Disk %": 6,
-              "Uptime": 7,
-              "Reboot": 8,
-              "Upgrades OK": 9,
-              "Pending Updates": 10
+              "Status": 1,
+              "CPU %": 2,
+              "Memory %": 3,
+              "Disk %": 4,
+              "Uptime": 5,
+              "Reboot": 6,
+              "Upgrades OK": 7,
+              "Pending Updates": 8
             }
           }
         }
